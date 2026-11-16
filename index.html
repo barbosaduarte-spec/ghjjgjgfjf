@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Neon Reflex — Ranking Global</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <main class="container">
+    <header>
+      <h1>⚡ Neon Reflex</h1>
+      <p>Acerte o máximo de alvos em 30 segundos e entre no Ranking Global!</p>
+    </header>
+
+    <section class="controls">
+      <input
+        type="text"
+        id="player-name"
+        placeholder="Seu nickname (máx. 15 letras)"
+        maxlength="15"
+        autocomplete="off"
+      />
+      <div class="stats">
+        <div class="stat-box">
+          <span>Pontos</span>
+          <strong id="score">0</strong>
+        </div>
+        <div class="stat-box">
+          <span>Combo</span>
+          <strong id="combo">1x</strong>
+        </div>
+        <div class="stat-box">
+          <span>Tempo</span>
+          <strong id="time">30s</strong>
+        </div>
+      </div>
+    </section>
+
+    <section id="game-arena" class="arena">
+      <button id="start-btn" class="btn-primary">Iniciar Jogo</button>
+    </section>
+
+    <section class="leaderboard">
+      <div class="leaderboard-header">
+        <h2>🏆 Top 10 Ranking</h2>
+        <span id="db-status" class="badge">Modo Local</span>
+      </div>
+      <ol id="leaderboard-list">
+        <li>Carregando placar...</li>
+      </ol>
+    </section>
+  </main>
+
+  <script type="module" src="script.js"></script>
+</body>
+</html>
