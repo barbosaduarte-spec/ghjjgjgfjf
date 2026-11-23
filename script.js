@@ -1,35 +1,8 @@
-import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
-import {
-  getFirestore,
-  collection,
-  addDoc,
-  getDocs,
-  query,
-  orderBy,
-  limit
-} from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
-
 // =========================================================================
-// CONFIGURAÇÃO DO BANCO DE DADOS (FIREBASE FIRESTORE)
-// Substitua os valores abaixo pelos dados do seu projeto no Firebase Console
+// CONFIGURAÇÃO DA API 
+// Substitua o link abaixo pela URL que o Render gerou para o seu backend
 // =========================================================================
-const firebaseConfig = {
-  apiKey: "COLE_SUA_API_KEY_AQUI",
-  authDomain: "SEU_PROJETO.firebaseapp.com",
-  projectId: "SEU_PROJETO_ID",
-  storageBucket: "SEU_PROJETO.appspot.com",
-  messagingSenderId: "000000000000",
-  appId: "1:000000000000:web:000000000000"
-};
-
-const isFirebaseConfigured = firebaseConfig.apiKey !== "COLE_SUA_API_KEY_AQUI";
-let db = null;
-
-if (isFirebaseConfigured) {
-  const app = initializeApp(firebaseConfig);
-  db = getFirestore(app);
-  document.getElementById("db-status").textContent = "Nuvem Conectada";
-}
+const API_URL = "https://seu-backend.onrender.com/dados"; // <-- COLOQUE SEU LINK AQUI
 
 // Elementos da interface
 const arena = document.getElementById("game-arena");
@@ -39,6 +12,7 @@ const comboEl = document.getElementById("combo");
 const timeEl = document.getElementById("time");
 const nameInput = document.getElementById("player-name");
 const leaderboardList = document.getElementById("leaderboard-list");
+const dbStatus = document.getElementById("db-status");
 
 // Estado do jogo
 let score = 0;
@@ -47,7 +21,7 @@ let timeLeft = 30;
 let isPlaying = false;
 let timerInterval = null;
 
-// Efeito sonoro simples via Web Audio API (não precisa baixar arquivos MP3)
+// Efeito sonoro simples via Web Audio API
 function playHitSound(pitch = 520) {
   const ctx = new (window.AudioContext || window.webkitAudioContext)();
   const osc = ctx.createOscillator();
@@ -61,49 +35,56 @@ function playHitSound(pitch = 520) {
   osc.stop(ctx.currentTime + 0.12);
 }
 
-// Salva a pontuação no Firebase Firestore (ou localStorage se não configurado)
+// =========================================================================
+// FUNÇÃO 1: SALVAR DADOS NO BANCO (POST)
+// =========================================================================
 async function saveScore(playerName, finalScore) {
   if (finalScore <= 0) return;
 
-  if (db) {
-    try {
-      await addDoc(collection(db, "ranking"), {
+  try {
+    await fetch(API_URL, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json"
+      },
+      // Aqui usamos "nome" e "valor" para bater certinho com o seu backend
+      body: JSON.stringify({
         nome: playerName,
-        pontos: finalScore,
-        criadoEm: Date.now()
-      });
-    } catch (error) {
-      console.error("Erro ao salvar no Firebase:", error);
-    }
-  } else {
-    const localScores = JSON.parse(localStorage.getItem("neon_ranking") || "[]");
-    localScores.push({ nome: playerName, pontos: finalScore });
-    localScores.sort((a, b) => b.pontos - a.pontos);
-    localStorage.setItem("neon_ranking", JSON.stringify(localScores.slice(0, 10)));
+        valor: finalScore
+      })
+    });
+  } catch (error) {
+    console.error("Erro ao salvar no banco:", error);
+    alert("Erro ao salvar. Verifique se a URL da API está correta.");
   }
 
+  // Depois de salvar, atualiza a tabela
   await loadLeaderboard();
 }
 
-// Carrega o Top 10 do banco de dados
+// =========================================================================
+// FUNÇÃO 2: BUSCAR DADOS DO BANCO (GET)
+// =========================================================================
 async function loadLeaderboard() {
-  leaderboardList.innerHTML = "<li>Atualizando ranking...</li>";
+  // Aviso útil porque o plano gratuito do Render demora uns 40s para "acordar"
+  leaderboardList.innerHTML = "<li>Conectando ao banco (O Render gratuito pode levar 50s para acordar)...</li>";
+  
+  if (dbStatus) dbStatus.textContent = "Conectando...";
   let scores = [];
 
-  if (db) {
-    try {
-      const q = query(
-        collection(db, "ranking"),
-        orderBy("pontos", "desc"),
-        limit(10)
-      );
-      const snapshot = await getDocs(q);
-      snapshot.forEach((doc) => scores.push(doc.data()));
-    } catch (error) {
-      console.error("Erro ao ler ranking:", error);
+  try {
+    const resposta = await fetch(API_URL);
+    scores = await resposta.json();
+    
+    if (dbStatus) {
+      dbStatus.textContent = "API Online";
+      dbStatus.style.backgroundColor = "#065f46"; // Verde escuro para indicar sucesso
     }
-  } else {
-    scores = JSON.parse(localStorage.getItem("neon_ranking") || "[]");
+  } catch (error) {
+    console.error("Erro ao conectar na API:", error);
+    leaderboardList.innerHTML = "<li>Erro de conexão. A API está offline ou a URL está incorreta.</li>";
+    if (dbStatus) dbStatus.textContent = "API Offline";
+    return;
   }
 
   leaderboardList.innerHTML = "";
@@ -115,13 +96,14 @@ async function loadLeaderboard() {
     return;
   }
 
+  // Desenha os itens na tela
   scores.forEach((entry, index) => {
     const li = document.createElement("li");
     const nameSpan = document.createElement("span");
     const scoreStrong = document.createElement("strong");
 
     nameSpan.textContent = `#${index + 1} ${entry.nome}`;
-    scoreStrong.textContent = `${entry.pontos} pts`;
+    scoreStrong.textContent = `${entry.valor} pts`;
 
     li.appendChild(nameSpan);
     li.appendChild(scoreStrong);
@@ -129,6 +111,9 @@ async function loadLeaderboard() {
   });
 }
 
+// =========================================================================
+// LÓGICA DO JOGO
+// =========================================================================
 function spawnTarget() {
   const existing = arena.querySelector(".target");
   if (existing) existing.remove();
@@ -197,13 +182,19 @@ async function endGame() {
   if (existing) existing.remove();
 
   const playerName = nameInput.value.trim() || "Jogador Anônimo";
-  startBtn.textContent = `Fim de jogo! (${score} pts) — Jogar de novo`;
+  
+  // Impede que o jogador clique várias vezes e envie várias pontuações
   startBtn.style.display = "block";
+  startBtn.disabled = true;
+  startBtn.textContent = "Salvando no banco de dados...";
 
   await saveScore(playerName, score);
+  
+  startBtn.textContent = `Fim! (${score} pts) — Jogar de novo`;
+  startBtn.disabled = false;
 }
 
 startBtn.addEventListener("click", startGame);
 
-// Carrega o ranking ao abrir a página
+// Carrega o ranking assim que a pessoa abre o site
 loadLeaderboard();
