@@ -1,10 +1,5 @@
-// =========================================================================
-// CONFIGURAÇÃO DA API 
-// Substitua o link abaixo pela URL que o Render gerou para o seu backend
-// =========================================================================
-const API_URL = "https://ghjjgjgfjf.onrender.com/dados"; // <-- COLOQUE SEU LINK AQUI
+const API_URL = "https://ghjjgjgfjf.onrender.com/dados";
 
-// Elementos da interface
 const arena = document.getElementById("game-arena");
 const startBtn = document.getElementById("start-btn");
 const scoreEl = document.getElementById("score");
@@ -14,14 +9,12 @@ const nameInput = document.getElementById("player-name");
 const leaderboardList = document.getElementById("leaderboard-list");
 const dbStatus = document.getElementById("db-status");
 
-// Estado do jogo
 let score = 0;
 let combo = 1;
 let timeLeft = 30;
 let isPlaying = false;
 let timerInterval = null;
 
-// Efeito sonoro simples via Web Audio API
 function playHitSound(pitch = 520) {
   const ctx = new (window.AudioContext || window.webkitAudioContext)();
   const osc = ctx.createOscillator();
@@ -35,9 +28,6 @@ function playHitSound(pitch = 520) {
   osc.stop(ctx.currentTime + 0.12);
 }
 
-// =========================================================================
-// FUNÇÃO 1: SALVAR DADOS NO BANCO (POST)
-// =========================================================================
 async function saveScore(playerName, finalScore) {
   if (finalScore <= 0) return;
 
@@ -47,7 +37,6 @@ async function saveScore(playerName, finalScore) {
       headers: {
         "Content-Type": "application/json"
       },
-      // Aqui usamos "nome" e "valor" para bater certinho com o seu backend
       body: JSON.stringify({
         nome: playerName,
         valor: finalScore
@@ -55,48 +44,41 @@ async function saveScore(playerName, finalScore) {
     });
   } catch (error) {
     console.error("Erro ao salvar no banco:", error);
-    alert("Erro ao salvar. Verifique se a URL da API está correta.");
   }
 
-  // Depois de salvar, atualiza a tabela
   await loadLeaderboard();
 }
 
-// =========================================================================
-// FUNÇÃO 2: BUSCAR DADOS DO BANCO (GET)
-// =========================================================================
 async function loadLeaderboard() {
-  // Aviso útil porque o plano gratuito do Render demora uns 40s para "acordar"
-  leaderboardList.innerHTML = "<li>Conectando ao banco (O Render gratuito pode levar 50s para acordar)...</li>";
-  
+  leaderboardList.innerHTML = "<li>Conectando ao banco de dados...</li>";
   if (dbStatus) dbStatus.textContent = "Conectando...";
   let scores = [];
 
   try {
     const resposta = await fetch(API_URL);
     scores = await resposta.json();
-    
+
     if (dbStatus) {
       dbStatus.textContent = "API Online";
-      dbStatus.style.backgroundColor = "#065f46"; // Verde escuro para indicar sucesso
+      dbStatus.style.backgroundColor = "#065f46";
+      dbStatus.style.color = "#ffffff";
     }
   } catch (error) {
     console.error("Erro ao conectar na API:", error);
-    leaderboardList.innerHTML = "<li>Erro de conexão. A API está offline ou a URL está incorreta.</li>";
+    leaderboardList.innerHTML = "<li>Erro ao carregar ranking.</li>";
     if (dbStatus) dbStatus.textContent = "API Offline";
     return;
   }
 
   leaderboardList.innerHTML = "";
 
-  if (scores.length === 0) {
+  if (!Array.isArray(scores) || scores.length === 0) {
     const emptyItem = document.createElement("li");
     emptyItem.textContent = "Nenhuma pontuação registrada ainda. Seja o primeiro!";
     leaderboardList.appendChild(emptyItem);
     return;
   }
 
-  // Desenha os itens na tela
   scores.forEach((entry, index) => {
     const li = document.createElement("li");
     const nameSpan = document.createElement("span");
@@ -111,9 +93,6 @@ async function loadLeaderboard() {
   });
 }
 
-// =========================================================================
-// LÓGICA DO JOGO
-// =========================================================================
 function spawnTarget() {
   const existing = arena.querySelector(".target");
   if (existing) existing.remove();
@@ -144,7 +123,6 @@ function spawnTarget() {
   arena.appendChild(target);
 }
 
-// Clicar fora do alvo zera o combo
 arena.addEventListener("pointerdown", () => {
   if (!isPlaying) return;
   combo = 1;
@@ -182,19 +160,17 @@ async function endGame() {
   if (existing) existing.remove();
 
   const playerName = nameInput.value.trim() || "Jogador Anônimo";
-  
-  // Impede que o jogador clique várias vezes e envie várias pontuações
+
   startBtn.style.display = "block";
   startBtn.disabled = true;
   startBtn.textContent = "Salvando no banco de dados...";
 
   await saveScore(playerName, score);
-  
+
   startBtn.textContent = `Fim! (${score} pts) — Jogar de novo`;
   startBtn.disabled = false;
 }
 
 startBtn.addEventListener("click", startGame);
 
-// Carrega o ranking assim que a pessoa abre o site
 loadLeaderboard();
