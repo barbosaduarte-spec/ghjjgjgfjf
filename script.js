@@ -2,7 +2,7 @@
 // CONFIGURAÇÃO DA API 
 // Substitua o link abaixo pela URL que o Render gerou para o seu backend
 // =========================================================================
-const API_URL = "https://seu-backend.onrender.com/dados"; // <-- COLOQUE SEU LINK AQUI
+const API_URL = "https://ghjjgjgfjf.onrender.com/dados"; // <-- COLOQUE SEU LINK AQUI
 
 // Elementos da interface
 const arena = document.getElementById("game-arena");
